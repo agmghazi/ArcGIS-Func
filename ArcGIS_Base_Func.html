@@ -26,6 +26,17 @@
     <table border="1">
       <tr>
         <td valign="top">
+          <div>
+            <input
+              id="app"
+              type="range"
+              v-model="rangeValue"
+              step="0.1"
+              min="0"
+              value="1"
+              max="1"
+            />
+          </div>
           <div id="toc"></div>
         </td>
 
@@ -81,28 +92,26 @@
           center: [-88.15305218650816, 41.77040974261415],
         });
 
-        //this to get all services in arcserver API
-        let Url = ServiceJsonURL;
-        // Define the 'options' for the request
-        var options = {
-          query: {
-            f: "json",
-          },
-          responseType: "json",
+        onChangeServiceMap(1);
+        let progressBar = document.querySelector("#app");
+        progressBar.onchange = function () {
+          progressBars = progressBar.value;
+          onChangeServiceMap(parseFloat(progressBar.value));
         };
-        Request(Url, options).then(onChangeServiceMap);
 
-        function onChangeServiceMap() {
+        function onChangeServiceMap(progressValue) {
           layer = new MapLayer({
             url: ServiceURL,
           });
-          // map.removeAll(); //for delete all layers
+          layer.opacity = progressValue;
+
+          map.removeAll(); //for delete all layers
           map.add(layer);
           //wait until the layer is loaded
           layer.when(() => {
             //this code to generate table of content (visible & not visible)
             let toc = document.getElementById("toc");
-            // toc.innerHTML = "";
+
             while (toc.firstChild) {
               toc.removeChild(toc.firstChild);
             }
@@ -208,7 +217,6 @@
         });
 
         let layerItem = document.createElement("li");
-
         layerItem.appendChild(chk);
         layerItem.appendChild(lbl);
         layerList.appendChild(layerItem);
@@ -220,10 +228,14 @@
         ) {
           let newList = document.createElement("ul");
           newList.style.display = "none";
+
           newList.classList.add("ulToggle");
 
           layerList.appendChild(newList);
 
+          if (lbl.textContent == "MapServiceTest") {
+            lbl.innerHTML = "ممتلكات الوزارة العامة للرياضة";
+          }
           if (document.querySelector(".lblCount")[0] == undefined)
             lblCount.style.visibility = "hidden";
 
