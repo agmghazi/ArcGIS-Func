@@ -195,8 +195,16 @@
         //on click, open attribut table
         lbl.addEventListener("click", function (e) {
           populateAtributeTable(e.target.layerId, e.target.FeatureCount, 1);
-          populatePageCount(e.target.layerId, e.target.FeatureCount);
-          onChangeFeatureService(e.target.layerId);
+          if (e.target.FeatureCount === undefined) {
+            console.log("not found any data");
+            let PaginationCleaner = document.querySelector("#PageCounter");
+            while (PaginationCleaner.firstChild) {
+              PaginationCleaner.removeChild(PaginationCleaner.firstChild);
+            }
+          } else {
+            populatePageCount(e.target.layerId, e.target.FeatureCount);
+            onChangeFeatureService(e.target.layerId);
+          }
         });
 
         let layerItem = document.createElement("li");
