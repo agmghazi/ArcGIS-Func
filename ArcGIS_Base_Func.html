@@ -71,7 +71,9 @@
       const DEFAULT_SET_PAGE_SIZE = 10;
       var ServiceJsonURL = "http://93.112.6.225/arcgis/rest/services?f=pjson";
       var ServiceURL =
-        "http://93.112.6.225/arcgis/rest/services/MapServiceTest/MapServer/";
+        "http://93.112.6.225/arcgis/rest/services/A_MapService/MapServer/";
+      var LegnendServiceURL =
+        "http://93.112.6.225/arcgis/rest/services/A_MapService/MapServer/legend?f=pjson";
 
       require([
         "esri/Map",
@@ -83,6 +85,7 @@
         Request = EsriRequest;
         Graphic = GraphicClass;
         MapLayer = MapLayerEsri;
+
         map = new Map({ basemap: "topo" });
 
         mapview = new MapView({
@@ -92,14 +95,14 @@
           center: [-88.15305218650816, 41.77040974261415],
         });
 
-        onChangeServiceMap(1);
+        onChangeServiceMap(1, true);
         let progressBar = document.querySelector("#app");
         progressBar.onchange = function () {
           progressBars = progressBar.value;
-          onChangeServiceMap(parseFloat(progressBar.value));
+          onChangeServiceMap(parseFloat(progressBar.value, false));
         };
 
-        function onChangeServiceMap(progressValue) {
+        function onChangeServiceMap(progressValue, poolGoTo) {
           layer = new MapLayer({
             url: ServiceURL,
           });
@@ -122,8 +125,9 @@
 
             //populate layer in list
             populateLayerRecursive(layer, layerList);
-
-            mapview.goTo(layer.fullExtent);
+            if (poolGoTo == true) {
+              mapview.goTo(layer.fullExtent);
+            }
           });
         }
       });
@@ -180,6 +184,8 @@
         );
       }
 
+      let layerItem;
+      let LegendItem;
       // populate layer Recursive in the input element
       function populateLayerRecursive(thislayer, layerList) {
         let chk = document.createElement("input");
@@ -201,12 +207,22 @@
 
         getCount(thislayer.id, lblCount, lbl);
         lbl.layerId = thislayer.id;
+
+        layerItem = document.createElement("li");
+        layerItem.appendChild(chk);
+        layerItem.appendChild(lbl);
+        layerList.appendChild(layerItem);
+        layerItem.appendChild(lblCount);
+        GenerateLegend(thislayer.id, layerItem);
+
         //on click, open attribut table
         lbl.addEventListener("click", function (e) {
+          // GenerateLegend(e.target.layerId, layerItem);
           populateAtributeTable(e.target.layerId, e.target.FeatureCount, 1);
           if (e.target.FeatureCount === undefined) {
             console.log("not found any data");
             let PaginationCleaner = document.querySelector("#PageCounter");
+
             while (PaginationCleaner.firstChild) {
               PaginationCleaner.removeChild(PaginationCleaner.firstChild);
             }
@@ -216,24 +232,19 @@
           }
         });
 
-        let layerItem = document.createElement("li");
-        layerItem.appendChild(chk);
-        layerItem.appendChild(lbl);
-        layerList.appendChild(layerItem);
-        layerItem.appendChild(lblCount);
-
         if (
           thislayer.sublayers != null &&
           thislayer.sublayers.items.length > 0
         ) {
           let newList = document.createElement("ul");
+
           newList.style.display = "none";
 
           newList.classList.add("ulToggle");
 
           layerList.appendChild(newList);
 
-          if (lbl.textContent == "MapServiceTest") {
+          if (lbl.textContent == "A MapService") {
             lbl.innerHTML = "ممتلكات الوزارة العامة للرياضة";
           }
           if (document.querySelector(".lblCount")[0] == undefined)
@@ -243,6 +254,36 @@
             populateLayerRecursive(thislayer.sublayers.items[i], newList);
           }
         }
+      }
+
+      function GenerateLegend(layerIds, layerItem) {
+        let requestOptionss = {
+          responseType: "json",
+        };
+        Request(LegnendServiceURL, requestOptionss).then(function (responses) {
+          let resultss = responses.data;
+          for (let i = 0; i < resultss.layers.length; i++) {
+            for (let j = 0; j < resultss.layers[i].legend.length; j++) {
+              if (layerIds === resultss.layers[i].layerId) {
+                LegendItem = document.createElement("ul");
+                let LegendImg = document.createElement("img");
+                LegendItem.appendChild(LegendImg);
+                // console.log("outlayer" + layerId);
+                // let op = resultss.layers[i].legend[j].imageData;
+                // let opp = resultss.layers[i].layerId;
+                // console.log(op);
+                // console.log("legend" + opp);
+                // LegendImg.src =
+                //   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAFNJREFUOI1jYaAyYBk1cNRAOPiPxGak1MD/c4MRnOS1DP/xGUrIQBTDGBgYGOYG4zd06EcKY/JajDBkYKAgDOGGIvPxKSbWy3gNIcdAosGogZQDAMKAEGIsvr2UAAAAAElFTkSuQmCC";
+                LegendImg.src = `data:${resultss.layers[i].legend[j].contentType};base64,${resultss.layers[i].legend[j].imageData}`;
+                LegendImg.alt = resultss.layers[i].layerName;
+                LegendImg.width = resultss.layers[i].legend[j].height;
+                LegendImg.height = resultss.layers[i].legend[j].width;
+                layerItem.appendChild(LegendItem);
+              }
+            }
+          }
+        });
       }
       function drawGeometry(geometry, cleanup = true) {
         let g;
@@ -286,7 +327,7 @@
           s = {
             type: "simple-marker",
             color: [255, 0, 0, 0.5],
-            size: 30,
+            size: 20,
           };
         }
 
@@ -480,7 +521,13 @@
           PreviousSet.disabled = false;
         }
 
-        PreviousSet.addEventListener("click", function (e) {
+        PreviousSet.addEventListener("click", function () {
+          page.addEventListener("click", function (e) {
+            resetPages();
+            e.target.style.color = "red";
+            populateAtributeTable(LayerID, feaureCount, i - 1);
+          });
+
           page.click();
           resetPages();
           populatePageCount(
