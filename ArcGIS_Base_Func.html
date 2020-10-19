@@ -1,550 +1,546 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <link
-      rel="stylesheet"
-      href="https://js.arcgis.com/4.16/esri/themes/light/main.css"
-    />
-    <script src="https://js.arcgis.com/4.16/"></script>
 
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <link rel="stylesheet" href="https://js.arcgis.com/4.16/esri/themes/light/main.css" />
+  <script src="https://js.arcgis.com/4.16/"></script>
 
-    <title>esri api tutorial</title>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 
-    <style>
-      .lblCount {
-        border: 1px solid red;
-        color: blue;
-      }
-    </style>
-  </head>
+  <title>esri api tutorial</title>
 
-  <body>
-    <table border="1">
-      <tr>
-        <td valign="top">
-          <div>
-            <input
-              id="app"
-              type="range"
-              v-model="rangeValue"
-              step="0.1"
-              min="0"
-              value="1"
-              max="1"
-            />
-          </div>
-          <div id="toc"></div>
-        </td>
+  <style>
+    .lblCount {
+      color: blue;
+    }
+  </style>
+</head>
 
-        <td>
-          <div id="mapView" style="width: 1000px; height: 500px"></div>
-        </td>
-      </tr>
+<body>
+  <table border="1">
+    <tr>
+      <td valign="top">
+        <div>
+          <input id="app" type="range" v-model="rangeValue" step="0.1" min="0" value="1" max="1" />
+        </div>
+        <div id="toc"></div>
+      </td>
 
-      <tr>
-        <td colspan="2">
-          <span style="color: red; font-size: 20px">PageCounter</span>
-          <div id="PageCounter"></div>
-        </td>
-      </tr>
-      <tr>
-        <td colspan="2">
-          <span style="color: red; font-size: 20px">Atribute Table</span>
-          <div id="attributeTable"></div>
-        </td>
-      </tr>
-    </table>
+      <td>
+        <div id="mapView" style="width: 1000px; height: 500px"></div>
+      </td>
+    </tr>
 
-    <script>
-      let mapview;
-      let map;
-      let layer;
-      var Request;
-      const DEFAULTPageCount = 10;
-      var LayerID;
-      let Graphic;
-      var MapLayer;
-      const DEFAULT_SET_PAGE_SIZE = 10;
-      var ServiceJsonURL = "http://93.112.6.225/arcgis/rest/services?f=pjson";
-      var ServiceURL =
-        "http://93.112.6.225/arcgis/rest/services/A_MapService/MapServer/";
-      var LegnendServiceURL =
-        "http://93.112.6.225/arcgis/rest/services/A_MapService/MapServer/legend?f=pjson";
+    <tr>
+      <td colspan="2">
+        <span style="color: red; font-size: 20px">PageCounter</span>
+        <div id="PageCounter"></div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <span style="color: red; font-size: 20px">Atribute Table</span>
+        <div id="attributeTable"></div>
+      </td>
+    </tr>
+  </table>
 
-      require([
-        "esri/Map",
-        "esri/views/MapView",
-        "esri/request",
-        "esri/layers/MapImageLayer",
-        "esri/Graphic",
-      ], function (Map, MapView, EsriRequest, MapLayerEsri, GraphicClass) {
-        Request = EsriRequest;
-        Graphic = GraphicClass;
-        MapLayer = MapLayerEsri;
+  <script>
+    let mapview;
+    let map;
+    let layer;
+    var Request;
+    const DEFAULTPageCount = 10;
+    var LayerID;
+    let Graphic;
+    var MapLayer;
+    const DEFAULT_SET_PAGE_SIZE = 10;
+    var ServiceJsonURL = "http://93.112.6.225/arcgis/rest/services?f=pjson";
+    var ServiceURL =
+      "http://93.112.6.225/arcgis/rest/services/A_MapService_N_/MapServer/";
+    var LegnendServiceURL =
+      "http://93.112.6.225/arcgis/rest/services/A_MapService_N_/MapServer/legend?f=pjson";
 
-        map = new Map({ basemap: "topo" });
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/request",
+      "esri/layers/MapImageLayer",
+      "esri/Graphic",
+    ], function (Map, MapView, EsriRequest, MapLayerEsri, GraphicClass) {
+      Request = EsriRequest;
+      Graphic = GraphicClass;
+      MapLayer = MapLayerEsri;
 
-        mapview = new MapView({
-          container: "mapView",
-          map: map,
-          zoom: 15,
-          center: [-88.15305218650816, 41.77040974261415],
-        });
+      map = new Map({ basemap: "topo" });
 
-        onChangeServiceMap(1, true);
-        let progressBar = document.querySelector("#app");
-        progressBar.onchange = function () {
-          progressBars = progressBar.value;
-          onChangeServiceMap(parseFloat(progressBar.value, false));
-        };
-
-        function onChangeServiceMap(progressValue, poolGoTo) {
-          layer = new MapLayer({
-            url: ServiceURL,
-          });
-          layer.opacity = progressValue;
-
-          map.removeAll(); //for delete all layers
-          map.add(layer);
-          //wait until the layer is loaded
-          layer.when(() => {
-            //this code to generate table of content (visible & not visible)
-            let toc = document.getElementById("toc");
-
-            while (toc.firstChild) {
-              toc.removeChild(toc.firstChild);
-            }
-
-            let layerList = document.createElement("ul");
-            layerList.classList.add("ulToggle");
-            toc.appendChild(layerList);
-
-            //populate layer in list
-            populateLayerRecursive(layer, layerList);
-            if (poolGoTo == true) {
-              mapview.goTo(layer.fullExtent);
-            }
-          });
-        }
+      mapview = new MapView({
+        container: "mapView",
+        map: map,
+        zoom: 15,
+        center: [-88.15305218650816, 41.77040974261415],
       });
 
-      function onChangeFeatureService(layerIDs) {
-        let layerFeature = new MapLayer({
+      onChangeServiceMap(1, true);
+      let progressBar = document.querySelector("#app");
+      progressBar.onchange = function () {
+        progressBars = progressBar.value;
+        onChangeServiceMap(parseFloat(progressBar.value, false));
+      };
+
+      function onChangeServiceMap(progressValue, poolGoTo) {
+        layer = new MapLayer({
           url: ServiceURL,
-          sublayers: [
-            {
-              id: layerIDs,
-            },
-          ],
         });
-        // map.removeAll(); //for delete all layers
-        map.add(layerFeature);
+        layer.opacity = progressValue;
+
+        map.removeAll(); //for delete all layers
+        map.add(layer);
         //wait until the layer is loaded
-        layerFeature.when(() => {
-          // populateLayerRecursive(layer, layerList);
-          // console.log(layerFeature);
-          // mapview.goTo(layerFeature.fullExtent);
-          mapview.extent = {
-            // autocasts as new Extent()
-            xmin: layerFeature.fullExtent.xmin,
-            ymin: layerFeature.fullExtent.ymin,
-            xmax: layerFeature.fullExtent.xmax,
-            ymax: layerFeature.fullExtent.ymax,
-            spatialReference: layerFeature.fullExtent.spatialReference,
-          };
-        });
-      }
+        layer.when(() => {
+          //this code to generate table of content (visible & not visible)
+          let toc = document.getElementById("toc");
 
-      //this for query data
-      function getCount(LayerID, el, labelHover) {
-        let queryUrl = ServiceURL + LayerID + "/query";
-
-        let queryOption = {
-          responseType: "json",
-          query: {
-            f: "json",
-            where: "1=1",
-            returnCountOnly: true,
-          },
-        };
-
-        Request(queryUrl, queryOption).then(
-          function (response) {
-            if (response.data.count) {
-              labelHover.FeatureCount = response.data.count;
-              labelHover.style.cursor = "pointer";
-            }
-            el.textContent = " " + response.data.count;
-          },
-          (response) => (el.style.visibility = "hidden")
-        );
-      }
-
-      let layerItem;
-      let LegendItem;
-      // populate layer Recursive in the input element
-      function populateLayerRecursive(thislayer, layerList) {
-        let chk = document.createElement("input");
-        chk.type = "checkbox";
-        chk.value = thislayer.id;
-        LayerID = thislayer.id;
-        chk.checked = thislayer.visible;
-
-        chk.addEventListener("click", (e) => {
-          thislayer.visible = e.target.checked;
-        });
-
-        let lbl = document.createElement("label");
-        lbl.textContent = thislayer.title;
-
-        let lblCount = document.createElement("label");
-
-        lblCount.classList.add("lblCount");
-
-        getCount(thislayer.id, lblCount, lbl);
-        lbl.layerId = thislayer.id;
-
-        layerItem = document.createElement("li");
-        layerItem.appendChild(chk);
-        layerItem.appendChild(lbl);
-        layerList.appendChild(layerItem);
-        layerItem.appendChild(lblCount);
-        GenerateLegend(thislayer.id, layerItem);
-
-        //on click, open attribut table
-        lbl.addEventListener("click", function (e) {
-          // GenerateLegend(e.target.layerId, layerItem);
-          populateAtributeTable(e.target.layerId, e.target.FeatureCount, 1);
-          if (e.target.FeatureCount === undefined) {
-            console.log("not found any data");
-            let PaginationCleaner = document.querySelector("#PageCounter");
-
-            while (PaginationCleaner.firstChild) {
-              PaginationCleaner.removeChild(PaginationCleaner.firstChild);
-            }
-          } else {
-            populatePageCount(e.target.layerId, e.target.FeatureCount);
-            onChangeFeatureService(e.target.layerId);
+          while (toc.firstChild) {
+            toc.removeChild(toc.firstChild);
           }
-        });
 
-        if (
-          thislayer.sublayers != null &&
-          thislayer.sublayers.items.length > 0
-        ) {
-          let newList = document.createElement("ul");
+          let layerList = document.createElement("ul");
+          layerList.classList.add("ulToggle");
+          toc.appendChild(layerList);
 
-          newList.style.display = "none";
-
-          newList.classList.add("ulToggle");
-
-          layerList.appendChild(newList);
-
-          if (lbl.textContent == "A MapService") {
-            lbl.innerHTML = "ممتلكات الوزارة العامة للرياضة";
-          }
-          if (document.querySelector(".lblCount")[0] == undefined)
-            lblCount.style.visibility = "hidden";
-
-          for (let i = 0; i < thislayer.sublayers.length; i++) {
-            populateLayerRecursive(thislayer.sublayers.items[i], newList);
-          }
-        }
-      }
-
-      function GenerateLegend(layerIds, layerItem) {
-        let requestOptionss = {
-          responseType: "json",
-        };
-        Request(LegnendServiceURL, requestOptionss).then(function (responses) {
-          let resultss = responses.data;
-          for (let i = 0; i < resultss.layers.length; i++) {
-            for (let j = 0; j < resultss.layers[i].legend.length; j++) {
-              if (layerIds === resultss.layers[i].layerId) {
-                LegendItem = document.createElement("ul");
-                let LegendImg = document.createElement("img");
-                LegendItem.appendChild(LegendImg);
-                // console.log("outlayer" + layerId);
-                // let op = resultss.layers[i].legend[j].imageData;
-                // let opp = resultss.layers[i].layerId;
-                // console.log(op);
-                // console.log("legend" + opp);
-                // LegendImg.src =
-                //   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAFNJREFUOI1jYaAyYBk1cNRAOPiPxGak1MD/c4MRnOS1DP/xGUrIQBTDGBgYGOYG4zd06EcKY/JajDBkYKAgDOGGIvPxKSbWy3gNIcdAosGogZQDAMKAEGIsvr2UAAAAAElFTkSuQmCC";
-                LegendImg.src = `data:${resultss.layers[i].legend[j].contentType};base64,${resultss.layers[i].legend[j].imageData}`;
-                LegendImg.alt = resultss.layers[i].layerName;
-                LegendImg.width = resultss.layers[i].legend[j].height;
-                LegendImg.height = resultss.layers[i].legend[j].width;
-                layerItem.appendChild(LegendItem);
-              }
-            }
+          //populate layer in list
+          populateLayerRecursive(layer, layerList);
+          if (poolGoTo == true) {
+            mapview.goTo(layer.fullExtent);
           }
         });
       }
-      function drawGeometry(geometry, cleanup = true) {
-        let g;
-        let s;
-        //it is line
-        if (geometry.paths != undefined) {
-          g = {
-            type: "polyline",
-            paths: geometry.paths,
-          };
-          s = {
-            type: "simple-line",
-            cap: "round",
-            color: [255, 0, 0, 0.5],
-            width: 7,
-            style: "solid", //short-dot
-          };
-        } // it is a polygon
-        else if (geometry.rings != undefined) {
-          g = {
-            type: "polygon",
-            rings: geometry.rings,
-          };
-          s = {
-            type: "simple-fill",
-            color: [255, 0, 0, 0.5],
-            style: "backward-diagonal",
-            outline: {
-              width: 5,
-              color: [0, 0, 255, 0.7],
-              style: "solid",
-            },
-          };
-        } // it is a point
-        else {
-          g = {
-            type: "point",
-            longitude: geometry.x,
-            latitude: geometry.y,
-          };
-          s = {
-            type: "simple-marker",
-            color: [255, 0, 0, 0.5],
-            size: 20,
-          };
-        }
+    });
 
-        if (cleanup === true) mapview.graphics = []; //for clean all graphic
-
-        let graphic = new Graphic({ geometry: g, symbol: s });
-        mapview.graphics.add(graphic);
-        mapview.goTo(graphic);
-      }
-
-      function ZooomToFeature(e) {
-        let oLayerID = ServiceURL + e.target.eLayerID + "/query";
-
-        let oid = e.target.oid;
-
-        // alert(oLayerID);
-        // alert(oid);
-
-        let queryOption = {
-          responseType: "json",
-          query: {
-            f: "json",
-            objectIds: oid,
-            returnGeometry: true,
-            outSR: 4326,
+    function onChangeFeatureService(layerIDs) {
+      let layerFeature = new MapLayer({
+        url: ServiceURL,
+        sublayers: [
+          {
+            id: layerIDs,
           },
-        };
-        Request(oLayerID, queryOption)
-          .then((response) => {
-            // when we get the geometry back, create graphic and zoom...
-            // alert("Sucess" + JSON.stringify(response));
-            // alert(JSON.stringify(response.data));
-            drawGeometry(response.data.features[0].geometry);
-          })
-          .catch((err) => console.log("ERRor"));
-      }
-      //populate the attribute of a given layer
-      function populateAtributeTable(LayerID, FeatureCount, page) {
-        //create buttons
-
-        let attributeTable = document.getElementById("attributeTable");
-        // attributeTable.innerHTML = "";
-        while (attributeTable.firstChild) {
-          attributeTable.removeChild(attributeTable.firstChild);
-        }
-
-        let queryUrl = ServiceURL + LayerID + "/query";
-        let queryOption = {
-          responseType: "json",
-          query: {
-            f: "json",
-            where: "1=1",
-            returnCountOnly: false,
-            outFields: "*",
-            resultOffset: (page - 1) * DEFAULTPageCount,
-            resultRecordCount: DEFAULTPageCount,
-          },
-        };
-
-        Request(queryUrl, queryOption).then(
-          (response) => {
-            //alert(response.data.fields.length);
-            let table = document.createElement("table");
-            table.border = 2;
-            let header = document.createElement("tr");
-            let ZoomHeader = document.createElement("th");
-            ZoomHeader.textContent = "";
-            header.appendChild(ZoomHeader);
-            table.appendChild(header);
-
-            //populate the fileds / columns
-            for (let i = 0; i < response.data.fields.length; i++) {
-              // for create head (fields)
-              let column = document.createElement("th");
-              column.textContent = response.data.fields[i].alias;
-              header.appendChild(column);
-            }
-
-            //loop through all features
-            for (let j = 0; j < response.data.features.length; j++) {
-              let feature = response.data.features[j];
-              let row = document.createElement("tr");
-              let zoomColumn = document.createElement("td");
-
-              let img = document.createElement("img");
-              img.style.width = "32px";
-              img.style.height = "32px";
-              img.src = "zoom.png";
-              img.eLayerID = LayerID;
-              img.addEventListener("click", ZooomToFeature);
-              zoomColumn.appendChild(img);
-              row.appendChild(zoomColumn);
-              table.appendChild(row);
-              for (let i = 0; i < response.data.fields.length; i++) {
-                let field = response.data.fields[i];
-
-                let column = document.createElement("td");
-
-                if (field.type == "esriFieldTypeOID") {
-                  img.oid = feature.attributes[field.name];
-                }
-                // this to convert datetime from EPOCH(this to use samply to use by any thing in programming
-                //  (samply to convert to mile second)) to Date
-                if (field.type == "esriFieldTypeDate") {
-                  let date = new Date(feature.attributes[field.name]);
-                  column.textContent = date.toLocaleDateString("en-US");
-                } else {
-                  column.textContent = feature.attributes[field.name];
-                }
-                row.appendChild(column);
-              }
-            }
-
-            attributeTable.appendChild(table);
-          },
-          (response) => console.log("can not get attribute for group layer")
-        );
-      }
-
-      // #region Pagination
-
-      //rest buttonPages color
-      var buttonPages = [];
-      function resetPages() {
-        buttonPages.forEach((v) => {
-          v.style.color = "black";
-        });
-      }
-      let page;
-      function populatePageCount(
-        LayerID,
-        feaureCount,
-        initPage = 1,
-        initSet = 0
-      ) {
-        let pageCount = Math.ceil(feaureCount / DEFAULTPageCount);
-        let pageCountDiv = document.getElementById("PageCounter");
-        let feaureCountLBL = document.createElement("label");
-        feaureCountLBL.textContent = " العدد الإجمالى: " + feaureCount;
-
-        while (pageCountDiv.firstChild) {
-          pageCountDiv.removeChild(pageCountDiv.firstChild);
-        }
-
-        let pageToDraw = DEFAULT_SET_PAGE_SIZE;
-        if (pageCount - initSet < DEFAULT_SET_PAGE_SIZE) {
-          pageToDraw = pageCount - initSet;
-        }
-
-        for (let i = initSet; i < initSet + pageToDraw; i++) {
-          page = document.createElement("button");
-          page.textContent = i + 1;
-          buttonPages.push(page);
-          page.pageNumber = i + 1;
-          page.featureCount = feaureCount;
-
-          page.addEventListener("click", function (e) {
-            resetPages();
-            e.target.style.color = "red";
-            populateAtributeTable(LayerID, feaureCount, i + 1);
-          });
-          if (i + 1 === initPage) {
-            page.style.color = "red";
-          }
-          pageCountDiv.appendChild(page);
-          pageCountDiv.appendChild(feaureCountLBL);
-        }
-
-        // this for make next more pages
-        let nextSet = document.createElement("button");
-        nextSet.textContent = "Next";
-        nextSet.disabled = pageCount - initSet < DEFAULT_SET_PAGE_SIZE;
-        nextSet.addEventListener("click", function (e) {
-          page.click();
-          resetPages();
-          populatePageCount(
-            LayerID,
-            feaureCount,
-            initSet + DEFAULT_SET_PAGE_SIZE + 1,
-            initSet + DEFAULT_SET_PAGE_SIZE
-          );
-        });
-        pageCountDiv.appendChild(nextSet);
-
-        // this for make Previous more pages
-        let PreviousSet = document.createElement("button");
-        PreviousSet.textContent = "Previous";
-        if (initSet < DEFAULT_SET_PAGE_SIZE) {
-          PreviousSet.disabled = true;
-        } else if (pageCount + initSet > DEFAULT_SET_PAGE_SIZE) {
-          PreviousSet.disabled = false;
-        }
-
-        PreviousSet.addEventListener("click", function () {
-          page.addEventListener("click", function (e) {
-            resetPages();
-            e.target.style.color = "red";
-            populateAtributeTable(LayerID, feaureCount, i - 1);
-          });
-
-          page.click();
-          resetPages();
-          populatePageCount(
-            LayerID,
-            feaureCount,
-            initSet - DEFAULT_SET_PAGE_SIZE + 1,
-            initSet - DEFAULT_SET_PAGE_SIZE
-          );
-        });
-        pageCountDiv.appendChild(PreviousSet);
-      }
-      // #endregion
-      $(document).on("click", ".ulToggle > li ", function () {
-        $(this).next("ul").toggle();
+        ],
       });
-    </script>
-  </body>
+      // map.removeAll(); //for delete all layers
+      map.add(layerFeature);
+      //wait until the layer is loaded
+      layerFeature.when(() => {
+        // populateLayerRecursive(layer, layerList);
+        // console.log(layerFeature);
+        // mapview.goTo(layerFeature.fullExtent);
+        mapview.extent = {
+          // autocasts as new Extent()
+          xmin: layerFeature.fullExtent.xmin,
+          ymin: layerFeature.fullExtent.ymin,
+          xmax: layerFeature.fullExtent.xmax,
+          ymax: layerFeature.fullExtent.ymax,
+          spatialReference: layerFeature.fullExtent.spatialReference,
+        };
+      });
+    }
+
+    //this for query data
+    function getCount(LayerID, el, labelHover) {
+      let queryUrl = ServiceURL + LayerID + "/query";
+
+      let queryOption = {
+        responseType: "json",
+        query: {
+          f: "json",
+          where: "1=1",
+          returnCountOnly: true,
+        },
+      };
+
+      Request(queryUrl, queryOption).then(
+        function (response) {
+          if (response.data.count) {
+            labelHover.FeatureCount = response.data.count;
+            labelHover.style.cursor = "pointer";
+          }
+          el.textContent = " " + response.data.count;
+        },
+        (response) => (el.style.visibility = "hidden")
+      );
+    }
+
+    let layerItem;
+    let LegendItem;
+    // populate layer Recursive in the input element
+    function populateLayerRecursive(thislayer, layerList) {
+      let chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.value = thislayer.id;
+      LayerID = thislayer.id;
+      chk.checked = thislayer.visible;
+
+      chk.addEventListener("click", (e) => {
+        thislayer.visible = e.target.checked;
+      });
+
+      let lbl = document.createElement("label");
+      lbl.textContent = thislayer.title;
+
+      let lblCount = document.createElement("label");
+
+      let pdfView = document.createElement("input");
+      pdfView.type = "image"
+      pdfView.id = thislayer.id;
+      pdfView.src = "https://img.icons8.com/wired/23/000000/pdf-2.png"
+
+      lblCount.classList.add("lblCount");
+
+      getCount(thislayer.id, lblCount, lbl);
+      lbl.layerId = thislayer.id;
+
+      layerItem = document.createElement("li");
+      layerItem.appendChild(chk);
+      layerItem.appendChild(lbl);
+      layerList.appendChild(layerItem);
+      layerItem.appendChild(lblCount);
+      layerItem.appendChild(pdfView);
+      GenerateLegend(thislayer.id, layerItem);
+
+      //on click, open attribut table
+      lbl.addEventListener("click", function (e) {
+        // GenerateLegend(e.target.layerId, layerItem);
+        populateAtributeTable(e.target.layerId, e.target.FeatureCount, 1);
+        if (e.target.FeatureCount === undefined) {
+          console.log("not found any data");
+          let PaginationCleaner = document.querySelector("#PageCounter");
+
+          while (PaginationCleaner.firstChild) {
+            PaginationCleaner.removeChild(PaginationCleaner.firstChild);
+          }
+        } else {
+          populatePageCount(e.target.layerId, e.target.FeatureCount);
+          onChangeFeatureService(e.target.layerId);
+        }
+      });
+
+      if (
+        thislayer.sublayers != null &&
+        thislayer.sublayers.items.length > 0
+      ) {
+        let newList = document.createElement("ul");
+
+        newList.style.display = "none";
+
+        newList.classList.add("ulToggle");
+
+        layerList.appendChild(newList);
+
+        if (lbl.textContent == "A MapService") {
+          lbl.innerHTML = "ممتلكات الوزارة العامة للرياضة";
+        }
+        if (document.querySelector(".lblCount")[0] == undefined)
+          lblCount.style.visibility = "hidden";
+
+        for (let i = 0; i < thislayer.sublayers.length; i++) {
+          populateLayerRecursive(thislayer.sublayers.items[i], newList);
+        }
+      }
+    }
+
+    function GenerateLegend(layerIds, layerItem) {
+      let requestOptionss = {
+        responseType: "json",
+      };
+      Request(LegnendServiceURL, requestOptionss).then(function (responses) {
+        let resultss = responses.data;
+        for (let i = 0; i < resultss.layers.length; i++) {
+          for (let j = 0; j < resultss.layers[i].legend.length; j++) {
+            if (layerIds === resultss.layers[i].layerId) {
+              LegendItem = document.createElement("ul");
+              let LegendImg = document.createElement("img");
+              LegendItem.appendChild(LegendImg);
+              // console.log("outlayer" + layerId);
+              // let op = resultss.layers[i].legend[j].imageData;
+              // let opp = resultss.layers[i].layerId;
+              // console.log(op);
+              // console.log("legend" + opp);
+              // LegendImg.src =
+              //   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAFNJREFUOI1jYaAyYBk1cNRAOPiPxGak1MD/c4MRnOS1DP/xGUrIQBTDGBgYGOYG4zd06EcKY/JajDBkYKAgDOGGIvPxKSbWy3gNIcdAosGogZQDAMKAEGIsvr2UAAAAAElFTkSuQmCC";
+              LegendImg.src = `data:${resultss.layers[i].legend[j].contentType};base64,${resultss.layers[i].legend[j].imageData}`;
+              LegendImg.alt = resultss.layers[i].layerName;
+              LegendImg.width = resultss.layers[i].legend[j].height;
+              LegendImg.height = resultss.layers[i].legend[j].width;
+              layerItem.appendChild(LegendItem);
+            }
+          }
+        }
+      });
+    }
+    function drawGeometry(geometry, cleanup = true) {
+      let g;
+      let s;
+      //it is line
+      if (geometry.paths != undefined) {
+        g = {
+          type: "polyline",
+          paths: geometry.paths,
+        };
+        s = {
+          type: "simple-line",
+          cap: "round",
+          color: [255, 0, 0, 0.5],
+          width: 7,
+          style: "solid", //short-dot
+        };
+      } // it is a polygon
+      else if (geometry.rings != undefined) {
+        g = {
+          type: "polygon",
+          rings: geometry.rings,
+        };
+        s = {
+          type: "simple-fill",
+          color: [255, 0, 0, 0.5],
+          style: "backward-diagonal",
+          outline: {
+            width: 5,
+            color: [0, 0, 255, 0.7],
+            style: "solid",
+          },
+        };
+      } // it is a point
+      else {
+        g = {
+          type: "point",
+          longitude: geometry.x,
+          latitude: geometry.y,
+        };
+        s = {
+          type: "simple-marker",
+          color: [255, 0, 0, 0.5],
+          size: 20,
+        };
+      }
+
+      if (cleanup === true) mapview.graphics = []; //for clean all graphic
+
+      let graphic = new Graphic({ geometry: g, symbol: s });
+      mapview.graphics.add(graphic);
+      mapview.goTo(graphic);
+    }
+
+    function ZooomToFeature(e) {
+      let oLayerID = ServiceURL + e.target.eLayerID + "/query";
+
+      let oid = e.target.oid;
+
+      // alert(oLayerID);
+      // alert(oid);
+
+      let queryOption = {
+        responseType: "json",
+        query: {
+          f: "json",
+          objectIds: oid,
+          returnGeometry: true,
+          outSR: 4326,
+        },
+      };
+      Request(oLayerID, queryOption)
+        .then((response) => {
+          // when we get the geometry back, create graphic and zoom...
+          // alert("Sucess" + JSON.stringify(response));
+          // alert(JSON.stringify(response.data));
+          drawGeometry(response.data.features[0].geometry);
+        })
+        .catch((err) => console.log("ERRor"));
+    }
+    //populate the attribute of a given layer
+    function populateAtributeTable(LayerID, FeatureCount, page) {
+      //create buttons
+
+      let attributeTable = document.getElementById("attributeTable");
+      // attributeTable.innerHTML = "";
+      while (attributeTable.firstChild) {
+        attributeTable.removeChild(attributeTable.firstChild);
+      }
+
+      let queryUrl = ServiceURL + LayerID + "/query";
+      let queryOption = {
+        responseType: "json",
+        query: {
+          f: "json",
+          where: "1=1",
+          returnCountOnly: false,
+          outFields: "*",
+          resultOffset: (page - 1) * DEFAULTPageCount,
+          resultRecordCount: DEFAULTPageCount,
+        },
+      };
+
+      Request(queryUrl, queryOption).then(
+        (response) => {
+          //alert(response.data.fields.length);
+          let table = document.createElement("table");
+          table.border = 2;
+          let header = document.createElement("tr");
+          let ZoomHeader = document.createElement("th");
+          ZoomHeader.textContent = "";
+          header.appendChild(ZoomHeader);
+          table.appendChild(header);
+
+          //populate the fileds / columns
+          for (let i = 0; i < response.data.fields.length; i++) {
+            // for create head (fields)
+            let column = document.createElement("th");
+            column.textContent = response.data.fields[i].alias;
+            header.appendChild(column);
+          }
+
+          //loop through all features
+          for (let j = 0; j < response.data.features.length; j++) {
+            let feature = response.data.features[j];
+            let row = document.createElement("tr");
+            let zoomColumn = document.createElement("td");
+
+            let img = document.createElement("img");
+            img.style.width = "32px";
+            img.style.height = "32px";
+            img.src = "zoom.png";
+            img.eLayerID = LayerID;
+            img.addEventListener("click", ZooomToFeature);
+            zoomColumn.appendChild(img);
+            row.appendChild(zoomColumn);
+            table.appendChild(row);
+            for (let i = 0; i < response.data.fields.length; i++) {
+              let field = response.data.fields[i];
+
+              let column = document.createElement("td");
+
+              if (field.type == "esriFieldTypeOID") {
+                img.oid = feature.attributes[field.name];
+              }
+              // this to convert datetime from EPOCH(this to use samply to use by any thing in programming
+              //  (samply to convert to mile second)) to Date
+              if (field.type == "esriFieldTypeDate") {
+                let date = new Date(feature.attributes[field.name]);
+                column.textContent = date.toLocaleDateString("en-US");
+              } else {
+                column.textContent = feature.attributes[field.name];
+              }
+              row.appendChild(column);
+            }
+          }
+
+          attributeTable.appendChild(table);
+        },
+        (response) => console.log("can not get attribute for group layer")
+      );
+    }
+
+    // #region Pagination
+
+    //rest buttonPages color
+    var buttonPages = [];
+    function resetPages() {
+      buttonPages.forEach((v) => {
+        v.style.color = "black";
+      });
+    }
+    let page;
+    function populatePageCount(
+      LayerID,
+      feaureCount,
+      initPage = 1,
+      initSet = 0
+    ) {
+      let pageCount = Math.ceil(feaureCount / DEFAULTPageCount);
+      let pageCountDiv = document.getElementById("PageCounter");
+      let feaureCountLBL = document.createElement("label");
+      feaureCountLBL.textContent = " العدد الإجمالى: " + feaureCount;
+
+      while (pageCountDiv.firstChild) {
+        pageCountDiv.removeChild(pageCountDiv.firstChild);
+      }
+
+      let pageToDraw = DEFAULT_SET_PAGE_SIZE;
+      if (pageCount - initSet < DEFAULT_SET_PAGE_SIZE) {
+        pageToDraw = pageCount - initSet;
+      }
+
+      for (let i = initSet; i < initSet + pageToDraw; i++) {
+        page = document.createElement("button");
+        page.textContent = i + 1;
+        buttonPages.push(page);
+        page.pageNumber = i + 1;
+        page.featureCount = feaureCount;
+
+        page.addEventListener("click", function (e) {
+          resetPages();
+          e.target.style.color = "red";
+          populateAtributeTable(LayerID, feaureCount, i + 1);
+        });
+        if (i + 1 === initPage) {
+          page.style.color = "red";
+        }
+        pageCountDiv.appendChild(page);
+        pageCountDiv.appendChild(feaureCountLBL);
+      }
+
+      // this for make next more pages
+      let nextSet = document.createElement("button");
+      nextSet.textContent = "Next";
+      nextSet.disabled = pageCount - initSet < DEFAULT_SET_PAGE_SIZE;
+      nextSet.addEventListener("click", function (e) {
+        page.click();
+        resetPages();
+        populatePageCount(
+          LayerID,
+          feaureCount,
+          initSet + DEFAULT_SET_PAGE_SIZE + 1,
+          initSet + DEFAULT_SET_PAGE_SIZE
+        );
+      });
+      pageCountDiv.appendChild(nextSet);
+
+      // this for make Previous more pages
+      let PreviousSet = document.createElement("button");
+      PreviousSet.textContent = "Previous";
+      if (initSet < DEFAULT_SET_PAGE_SIZE) {
+        PreviousSet.disabled = true;
+      } else if (pageCount + initSet > DEFAULT_SET_PAGE_SIZE) {
+        PreviousSet.disabled = false;
+      }
+
+      PreviousSet.addEventListener("click", function () {
+        page.addEventListener("click", function (e) {
+          resetPages();
+          e.target.style.color = "red";
+          populateAtributeTable(LayerID, feaureCount, i - 1);
+        });
+
+        page.click();
+        resetPages();
+        populatePageCount(
+          LayerID,
+          feaureCount,
+          initSet - DEFAULT_SET_PAGE_SIZE + 1,
+          initSet - DEFAULT_SET_PAGE_SIZE
+        );
+      });
+      pageCountDiv.appendChild(PreviousSet);
+    }
+    // #endregion
+    $(document).on("click", ".ulToggle > li ", function () {
+      $(this).next("ul").toggle();
+    });
+  </script>
+</body>
+
 </html>
 
 <!-- 
